@@ -1,6 +1,6 @@
 services:
   mysql:
-    image: arm64v8/mysql:oracle
+    image: mysql:latest
     container_name: mysql-server
     restart: always
     environment:
