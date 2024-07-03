@@ -1,0 +1,5 @@
+[mysqld]
+max_allowed_packet = 1G
+innodb_buffer_pool_size = 4G  # Adjust based on your system's RAM
+innodb_redo_log_capacity = 1G
+innodb_log_buffer_size = 256M
