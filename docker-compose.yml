@@ -1,32 +1,32 @@
 services:
   mysql:
-    image: mysql:latest
     container_name: mysql-server
-    restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: rootpass
       MYSQL_DATABASE: main
-      MYSQL_USER: user
       MYSQL_PASSWORD: pass
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_USER: user
+    image: mysql:latest
+    ports:
+      - '3306:3306'
+    restart: always
     volumes:
       - mysql_data:/var/lib/mysql
       - ./sql:/sql
       - ./mysql-conf/default.cnf:/etc/mysql/my.cnf
-    ports:
-      - '3306:3306'
 
   phpmyadmin:
-    image: phpmyadmin:latest
     container_name: phpmyadmin
-    ports:
-      - '8080:80'
-    environment:
-      PMA_HOST: mysql-server
-      PMA_PORT: 3306
-      PMA_USER: root
-      PMA_PASSWORD: rootpass
     depends_on:
       - mysql
+    environment:
+      PMA_HOST: mysql-server
+      PMA_PASSWORD: rootpass
+      PMA_PORT: 3306
+      PMA_USER: root
+    image: phpmyadmin:latest
+    ports:
+      - '8080:80'
 
 volumes:
   mysql_data:
