@@ -1,6 +1,8 @@
 import os
 import pandas as pd
 
+START_YEAR = 2018
+
 file_servicio_mapping = {
     "aconcagua.csv": (27, "SERVICIO DE SALUD ACONCAGUA"),
     "antofagasta.csv": (22, "SERVICIO DE SALUD ANTOFAGASTA"),
@@ -58,7 +60,7 @@ def read_intento_ideacion(path):
     return df
 
 
-def read_urgencias_autolesiones(path):
+def read_urgencia_autolesiones(path):
     files = [f for f in os.listdir(path)]
     df = pd.DataFrame()
     for f in files:
@@ -69,15 +71,90 @@ def read_urgencias_autolesiones(path):
 
     df.columns = df.columns.str.lower()
     df = df.rename(columns={"total_65_mas": "urgencias_lesiones_autoinflingidas"})
+    df = df[
+        ["año", "capitulo", "nombre_capitulo", "urgencias_lesiones_autoinflingidas"]
+    ]
+    df = df.sort_values(by=["año", "capitulo", "nombre_capitulo"])
     return df
 
 
+def impute_intento_ideacion_with_mean(df):
+    missing_year_df = pd.DataFrame(
+        {
+            "año": [START_YEAR] * len(df["capitulo"].unique()),
+            "capitulo": df["capitulo"].unique(),
+            "nombre_capitulo": df["nombre_capitulo"].unique(),
+            "suicidio_ideacion": [None] * len(df["capitulo"].unique()),
+            "suicidio_intento": [None] * len(df["capitulo"].unique()),
+        }
+    )
+    imputed_values = (
+        df.groupby("capitulo")[["suicidio_ideacion", "suicidio_intento"]]
+        .mean()
+        .reset_index()
+    )
+    print(imputed_values)
+
+    new_df = pd.merge(missing_year_df, imputed_values, on=["capitulo"], how="left")
+    new_df["suicidio_ideacion"] = new_df["suicidio_ideacion_x"].fillna(
+        new_df["suicidio_ideacion_y"]
+    )
+    new_df["suicidio_intento"] = new_df["suicidio_intento_x"].fillna(
+        new_df["suicidio_intento_y"]
+    )
+    new_df = new_df[
+        ["año", "capitulo", "nombre_capitulo", "suicidio_ideacion", "suicidio_intento"]
+    ]
+    return pd.concat([new_df, df], ignore_index=True)
+
+
+def impute_intento_ideacion(df):
+    missing_year_df = pd.DataFrame(
+        {
+            "año": [START_YEAR] * len(df["capitulo"].unique()),
+            "capitulo": df["capitulo"].unique(),
+            "nombre_capitulo": df["nombre_capitulo"].unique(),
+            "suicidio_ideacion": [None] * len(df["capitulo"].unique()),
+            "suicidio_intento": [None] * len(df["capitulo"].unique()),
+        }
+    )
+    new_df = pd.concat([missing_year_df, df], ignore_index=True)
+
+    imputed_values = (
+        new_df.groupby(["capitulo", "nombre_capitulo"])
+        .apply(lambda group: group.interpolate(method="linear", limit_direction="both"))
+        .reset_index(drop=True)
+        .sort_values(by=["año", "capitulo"])
+    )
+
+    return imputed_values
+
+
+def impute_urgencia_autolesiones(df):
+    anio_values = range(START_YEAR, 2024)
+    capitulo_values = df[["capitulo", "nombre_capitulo"]].drop_duplicates()
+
+    full_index = pd.MultiIndex.from_product(
+        [anio_values, capitulo_values["capitulo"]],
+        names=["año", "capitulo"],
+    )
+    full_df = pd.DataFrame(index=full_index).reset_index()
+    full_df = pd.merge(full_df, capitulo_values, on="capitulo", how="left")
+    return (
+        pd.merge(full_df, df, on=["año", "capitulo", "nombre_capitulo"], how="left")
+        .sort_values(by=["año", "capitulo"])
+        .fillna(0)
+    )
+
+
 intento_ideacion_df = read_intento_ideacion("../../datasets/ideacion-intento")
+intento_ideacion_df = impute_intento_ideacion(intento_ideacion_df)
 intento_ideacion_df.to_csv("../../datasets/ideacion_intento.csv", index=False)
 
-urgencias_autolesiones_df = read_urgencias_autolesiones(
+urgencia_autolesiones_df = read_urgencia_autolesiones(
     "../../datasets/urgencia-lesiones-autoinflingidas"
 )
-urgencias_autolesiones_df.to_csv(
+urgencia_autolesiones_df = impute_urgencia_autolesiones(urgencia_autolesiones_df)
+urgencia_autolesiones_df.to_csv(
     "../../datasets/urgencia_lesiones_autoinflingidas.csv", index=False
 )
