@@ -1,3 +1,10 @@
 import pandas as pd
+import argparse
 
-comunas_servicios_df = pd.read_csv("../datasets/comunas_por_zona.csv", delimiter=";")
+parser = argparse.ArgumentParser(description="Load comunas-servicios")
+parser.add_argument(
+    "csv_path", type=str, help="Path to the CSV file containing comunas and servicios"
+)
+
+args = parser.parse_args()
+comunas_servicios_df = pd.read_csv(args.csv_path, delimiter=";")
